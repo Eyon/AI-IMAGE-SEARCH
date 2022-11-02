@@ -39,7 +39,7 @@ app.post('/api', async (req, res) => {
 
     if (re.exec(q)) {
         var result = await axios.get(`https://lexica.art/api/v1/search?q=${'http://temp-image.serviceforapple.com/'+q}`)
-        result=result.data.images
+        result=result.data.images.slice(0,20)
     } else {
         const translation = await translate(q)
         if (translation.errorCode !== 0) {
@@ -47,7 +47,7 @@ app.post('/api', async (req, res) => {
 
         }
         var result = await axios.get(`https://lexica.art/api/v1/search?q=${translation.msg}`)
-        result = result.data.images
+        result = result.data.images.slice(0,20)
     }
 
 
