@@ -38,8 +38,8 @@ app.post('/api', async (req, res) => {
     const re = /[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/
 
     if (re.exec(q)) {
-        var result = await axios.get(`https://lexica.art/api/v1/search?q=${'http://temp-image.serviceforapple.com/'+q}`)
-        result=result.data.images.slice(0,20)
+        var result = await axios.get(`https://lexica.art/api/v1/search?q=${'http://temp2-image.serviceforapple.com/sm/' + q}`)
+        result = result.data.images
     } else {
         const translation = await translate(q)
         if (translation.errorCode !== 0) {
@@ -47,20 +47,26 @@ app.post('/api', async (req, res) => {
 
         }
         var result = await axios.get(`https://lexica.art/api/v1/search?q=${translation.msg}`)
-        result = result.data.images.slice(0,20)
+        result = result.data.images
     }
 
-
-    var promises = []
-    
     result.map(item => {
-        promises.push(new Promise(resolve => {
-            bucketManager.fetch(`https://lexica-serve-encoded-images.sharif.workers.dev/sm/${item.id}`, bucket, item.id, (e, r, b) => { resolve(true) })
-            item.srcSmall = 'http://temp-image.serviceforapple.com/' + item.id
-        }))
+        item.srcSmall = item.srcSmall.replace('https://lexica-serve-encoded-images.sharif.workers.dev', 'http://temp2-image.serviceforapple.com')
+        item.src = item.src.replace('https://lexica-serve-encoded-images.sharif.workers.dev', 'http://temp2-image.serviceforapple.com')
+        delete item.gallery
     })
 
-    Promise.all(promises).then(() => res.send(result))
+    result = await Promise.all(result.map(async item => {
+        try {
+            await axios.get(item.srcSmall)
+            return item
+        } catch{}
+    }))
+
+    result = result.filter(item=>item)
+
+    res.send(result)
+
 })
 
 app.post('/api/getmdimage', async (req, res) => {
@@ -70,22 +76,23 @@ app.post('/api/getmdimage', async (req, res) => {
         if (e) {
             reject(e)
         } else {
-            resolve({
-                url: 'http://temp-image.serviceforapple.com/' + 'md-' + id
-            })
+            resolve(b)
+            // resolve({
+            //     url: 'http://temp-image.serviceforapple.com/' + 'md-' + id
+            // })
         }
     }))
     const result = await promise
     res.send(result)
 })
 
-app.post('/api/translate',async(req,res)=>{
-    const {q} = req.body
-    const result = await translate(q,from="en",to="zh-CHS")
+app.post('/api/translate', async (req, res) => {
+    const { q } = req.body
+    const result = await translate(q, from = "en", to = "zh-CHS")
     res.send(result)
 })
 
-async function translate(word,from="zh-CHS",to="en") {
+async function translate(word, from = "zh-CHS", to = "en") {
 
     var appKey = '4940b16dbb6d22bf';
     var key = 'l6tUIS4Aym5mj7jdKqJ0bvKF01kEZuEj';
@@ -134,10 +141,10 @@ async function translate(word,from="zh-CHS",to="en") {
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
-  // await initDB();
-  app.listen(port, () => {
-    console.log("启动成功", port);
-  });
+    // await initDB();
+    app.listen(port, () => {
+        console.log("启动成功", port);
+    });
 }
 
 bootstrap();
